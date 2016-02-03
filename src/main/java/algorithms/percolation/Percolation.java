@@ -7,14 +7,15 @@ public class Percolation implements PercolationInterface {
 
   private final Map<Integer,Integer> grid;
   private final int n;
-  private final int topKey;
+//  private final int topKey;
+//  private final int botKey;
 
   public Percolation(int n) {
     if (n <= 0) {
       throw new IllegalArgumentException();
     }
     this.n = n;
-    this.topKey = n*n;
+//    this.topKey = n*n;
     grid = new HashMap<>();
     /*for (int i = n; 0 < i ; i--) {
       for (int j = n; 0 < j ; j--) {
@@ -49,6 +50,19 @@ public class Percolation implements PercolationInterface {
     throw new RuntimeException();
   }
 
+  private Integer getRoot(Integer key) {
+    Integer value = grid.get(key);
+    if (value != null) {
+      if (value == key) {
+        return key;
+      }
+      Integer rootValue = getRoot(value);
+      grid.replace(key, rootValue);
+      return rootValue;
+    }
+    throw new RuntimeException();
+  }
+
   @Override
   public void open(int i, int j) {
     validateInput(i);
@@ -61,20 +75,40 @@ public class Percolation implements PercolationInterface {
   }
 
   private void doConnections(Integer key) {
-    Integer topKey = key - n;
+    Integer neighborKey = getTopKey(key);
+    if (null != neighborKey && isOpen(neighborKey)) {
+      union(key, neighborKey);
+    }
     Integer beforeKey = key - 1;
     Integer afterKey = key + 1;
     Integer bottomKey = key + n;
-
-
   }
 
-  private boolean checkIfValidConnection(Integer key, Integer originalKey) {
+  private boolean union(Integer key, Integer neighborKey) {
+    if (!areConnected(key, neighborKey) && isValidConnection(key, neighborKey)) {
+      
+    }
     return false;
   }
 
-  private boolean checkIfConnectionIsNeeded(Integer key) {
-    return checkKeyInBounds(key) && isOpen(key);
+  private boolean areConnected(Integer key, Integer neighborKey) {
+    return getRoot(key).intValue() == getRoot(neighborKey).intValue();
+  }
+
+  private Integer getTopKey(Integer key) {
+    Integer topKey = key - n;
+    if (topKey <= 0) {
+      return null;
+    }
+    return topKey;
+  }
+
+  private boolean isValidConnection(Integer key, Integer neighborKey) {
+    return false;
+  }
+
+  private boolean isConnectionIsNeeded(Integer key) {
+    return isKeyInBounds(key) && isOpen(key);
   }
 
   @Override
@@ -107,7 +141,7 @@ public class Percolation implements PercolationInterface {
     }
   }
 
-  private boolean checkKeyInBounds(Integer key) {
+  private boolean isKeyInBounds(Integer key) {
     return 0 < key && key < n*n;
   }
 }
