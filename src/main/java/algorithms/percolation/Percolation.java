@@ -7,15 +7,14 @@ public class Percolation implements PercolationInterface {
 
   private final Map<Integer, Integer> grid;
   private final int n;
-//  private final int topKey;
-//  private final int botKey;
+  private Integer topKey;
+  private Integer bottomKey;
 
   public Percolation(int n) {
     if (n <= 0) {
       throw new IllegalArgumentException();
     }
     this.n = n;
-//    this.topKey = n*n;
     grid = new HashMap<>();
     /*for (int i = n; 0 < i ; i--) {
       for (int j = n; 0 < j ; j--) {
@@ -36,21 +35,6 @@ public class Percolation implements PercolationInterface {
     return rowAndColumn;
   }
 
-  /*private Integer getRoot(int i, int j) {
-    Integer key = getKey(i, j);
-    Integer value = grid.get(key);
-    if (value != null) {
-      if (value == key) {
-        return key;
-      }
-      int[] rowAndColumn = getRowAndColumn(key);
-      Integer rootValue = getRoot(rowAndColumn[0], rowAndColumn[1]);
-      grid.replace(key, rootValue);
-      return rootValue;
-    }
-    throw new RuntimeException();
-  }*/
-
   private Integer getRoot(Integer key) {
     Integer value = grid.get(key);
     if (value != null) {
@@ -66,70 +50,85 @@ public class Percolation implements PercolationInterface {
 
   @Override
   public void open(int i, int j) {
-    validateInput(i);
-    validateInput(j);
-    Integer valueAndKey = getKey(i, j);
-    if (!isOpen(valueAndKey)) {
-      grid.put(valueAndKey, valueAndKey);
-      doConnections(valueAndKey);
+    i = validateInput(i);
+    j = validateInput(j);
+    open(getKey(i, j));
+  }
+
+  private void open(Integer key) {
+    if (!isOpen(key)) {
+      grid.put(key, key);
+      setTopAndBottomKey(key);
+      doConnections(key);
+    }
+  }
+
+  private void setTopAndBottomKey(Integer key) {
+    if (key < n) {
+      if (null == topKey) {
+        topKey = key;
+      } else {
+        union(key, topKey);
+      }
+    } else if (key > (n*n - n)) {
+      if (null == bottomKey) {
+        bottomKey = key;
+      } else {
+        union(key, bottomKey);
+      }
     }
   }
 
   private void doConnections(Integer key) {
-    Integer neighborKey = getTopKey(key);
-    Integer[] neighborKeys = {getTopKey(key)};
-    if (null != neighborKey && isOpen(neighborKey)) {
-      union(key, neighborKey);
+    Integer[] neighborKeys = {getTopKey(key), getRightKey(key), getBottomKey(key), getLeftKey(key)};
+    for (Integer neighborKey :
+        neighborKeys) {
+      if (connectionIsNeeded(key, neighborKey)) {
+        union(key, neighborKey);
+      }
     }
-    Integer beforeKey = key - 1;
-    Integer afterKey = key + 1;
-    Integer bottomKey = key + n;
   }
 
   private boolean union(Integer key, Integer neighborKey) {
-    if (!areConnected(key, neighborKey) && isValidConnection(key, neighborKey)) {
+    if (!areConnected(key, neighborKey)) {
+      int i = getRoot(key);
+      int j = getRoot(neighborKey);
+      grid.replace(i, j);
       return true;
     }
     return false;
   }
 
   private boolean areConnected(Integer key, Integer neighborKey) {
-    return getRoot(key).intValue() == getRoot(neighborKey).intValue();
+    try {
+      return getRoot(key).intValue() == getRoot(neighborKey).intValue();
+    } catch (RuntimeException e) {
+      return false;
+    }
   }
 
   private Integer getTopKey(Integer key) {
-    Integer topKey = key - n;
-    if (topKey <= 0) {
-      return null;
-    }
-    return topKey;
+    return key - n;
   }
 
   private Integer getBottomKey(Integer key) {
-    Integer bottomKey = key + n;
-    if (bottomKey >= n*n) {
-      return null;
-    }
-    return bottomKey;
+    return key + n;
   }
 
   private Integer getLeftKey(Integer key) {
-    Integer leftKey = key - 1;
-    if (leftKey <= 0) {
-      return null;
-    }
-    return leftKey;
+    return key - 1;
   }
 
   private Integer getRightKey(Integer key) {
-    Integer rightKey = key + 1;
-    if (rightKey >= n*n) {
-      return null;
-    }
-    return rightKey;
+    return key + 1;
   }
 
-  private boolean isValidConnection(Integer key, Integer neighborKey) {
+  private boolean connectionIsNeeded(Integer key, Integer neighborKey) {
+    return connectionIsValid(key, neighborKey) && isOpen(neighborKey);
+  }
+
+  private boolean connectionIsValid(Integer key, Integer neighborKey) {
+    isKeyInBounds(neighborKey);
     int[] keyRowAndColumn = getRowAndColumn(key);
     int[] neighborKeyRowAndColumn = getRowAndColumn(neighborKey);
     int rowDifference = Math.abs(keyRowAndColumn[0] - neighborKeyRowAndColumn[0]);
@@ -137,21 +136,16 @@ public class Percolation implements PercolationInterface {
     return rowDifference <= 1 && columnDifference <= 1 && rowDifference + columnDifference <= 1;
   }
 
-  private boolean isConnectionIsNeeded(Integer key) {
-    return isKeyInBounds(key) && isOpen(key);
-  }
-
   @Override
   public boolean percolates() {
-    return true;
+    return topKey != null && bottomKey != null && areConnected(topKey, bottomKey);
   }
 
   @Override
   public boolean isOpen(int i, int j) {
-    validateInput(i);
-    validateInput(j);
-    Integer key = getKey(i, j);
-    return isOpen(key);
+    i = validateInput(i);
+    j = validateInput(j);
+    return isOpen(getKey(i, j));
   }
 
   private boolean isOpen(Integer key) {
@@ -159,19 +153,24 @@ public class Percolation implements PercolationInterface {
   }
 
   @Override
-  public boolean isFull(int row, int col) {
-    validateInput(row);
-    validateInput(col);
-    return false;
+  public boolean isFull(int i, int j) {
+    i = validateInput(i);
+    j = validateInput(j);
+    return isFull(getKey(i, j));
   }
 
-  private void validateInput(int x) {
+  private boolean isFull(Integer key) {
+    return topKey != null && areConnected(key, topKey);
+  }
+
+  private int validateInput(int x) {
     if (!(0 < x && x <= n)) {
       throw new IllegalArgumentException();
     }
+    return x - 1;
   }
 
   private boolean isKeyInBounds(Integer key) {
-    return 0 < key && key < n * n;
+    return 0 < key && key <= n * n;
   }
 }
